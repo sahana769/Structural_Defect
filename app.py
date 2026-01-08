@@ -3,69 +3,105 @@ import google.generativeai as genai
 from PIL import Image
 import datetime as dt
 import os
-
 from dotenv import load_dotenv
-load_dotenv() # activate api key
-# Configure the model
-key = os.getenv('GOOGLE_API_KEY')
-key = os.getenv('GOOGLE_API_KEY')
+
+load_dotenv()
+
+key = os.getenv("GOOGLE_API_KEY")
 
 if not key:
     st.error("GOOGLE_API_KEY not found")
     st.stop()
 
 genai.configure(api_key=key)
-model = genai.GenerativeModel('gemini-2.5-flash-lite')
+model = genai.GenerativeModel("gemini-2.5-flash-lite")
 
+st.sidebar.title(":red[UPLOAD YOUR IMAGE HERE]")
+uploaded_image = st.sidebar.file_uploader("Here", type=["jpeg", "jpg", "png"])
 
-# Upload and show image
-st.sidebar.title(':red[UPLOAD YOU IMAGE HERE]')
-uploaded_image = st.sidebar.file_uploader('Here',type=['jpeg','jpg','png'])
 if uploaded_image:
     image = Image.open(uploaded_image)
-    st.sidebar.subheader(':blue[UPLOADED IMAGE]')
+    st.sidebar.subheader(":blue[UPLOADED IMAGE]")
     st.sidebar.image(image)
 
-# Create main page
-st.title(':orange[STRUCTURAL DEFFECTS] : :green[AI assisted structural defect identifier in construction business]')
-tips ='''To use the application folow the steps below:
+st.title(":orange[STRUCTURAL DEFECTS] : :green[AI assisted structural defect identifier in construction business]")
+
+st.write("""
+To use the application follow the steps below:
 * Upload the image
-* Click on the button to generate summary
-* Click download to save the report generated'''
-st.write(tips)
-rep_title = st.text_input('Report Title :',None)
-prep_by = st.text_input('Report Prepared by :',None)
-prep_for = st.text_input('Report Prepared for :',None)
+* Select report language
+* Click Generate Report
+* Download the generated report
+""")
 
-prompt = f'''Assume you are a structural engineer. The user has has provided an image
-of a structure. You need to identify the strucutural defects in the image and genarate
-a report. The report should contain the following:
+language = st.radio(
+    "Select Report Language",
+    ["English", "Hindi", "Kannada", "Tamil", "Gujarati", "Marathi"],
+    horizontal=True
+)
 
-It should start with the title, prepared by and prepared for details. Provided by the user.
-use {rep_title} as title, {prep_by} as prepared by, {prep_for} as prepred for the same.
-Also mention the current date from {dt.datetime.now().date()}.
+rep_title = st.text_input("Report Title")
+prep_by = st.text_input("Report Prepared By")
+prep_for = st.text_input("Report Prepared For")
 
-* Identify and classify the defect for eg: crack, spalling, corrosion, honeycombing, etc.
-* There could more than one defects in the image. Identify all the defects seperately.
-* For each defect identified, provide a short description of the defect and its potential impact on the structure.
-* For each measure the severity of the defect as low, medium or high. Also mention if the defect is inevitable or avoidable.
-* Also mention the time before this defect leads to permament damage to the structure.
-* provide a shot term and long solution anlong with their estimated cost (in INR) and time to implement.
-* What precuationary measures can be taken to avoid such defects in future. 
-* The report generated should be in the word format.
-* Show the data in bullet points and tabular format wherever possible.
-* Make sure that the report does not exceeds 3 pages.'''
+language_instruction = {
+    "English": "Generate the entire report in English.",
+    "Hindi": "पूरी रिपोर्ट हिंदी भाषा में तैयार करें।",
+    "Kannada": "ಸಂಪೂರ್ಣ ವರದಿಯನ್ನು ಕನ್ನಡ ಭಾಷೆಯಲ್ಲಿ ರಚಿಸಿ.",
+    "Tamil": "முழு அறிக்கையையும் தமிழ் மொழியில் உருவாக்கவும்.",
+    "Gujarati": "સંપૂર્ણ અહેવાલ ગુજરાતી ભાષામાં તૈયાર કરો.",
+    "Marathi": "संपूर्ण अहवाल मराठी भाषेत तयार करा."
+}
 
-if st.button('Generate Report'):
+prompt = f"""
+Assume you are a senior structural engineer.
+
+The user has provided an image of a construction structure.
+
+{language_instruction[language]}
+
+Use the following details exactly:
+Title: {rep_title}
+Prepared By: {prep_by}
+Prepared For: {prep_for}
+Report Date: {dt.datetime.now().date()}
+
+Generate a professional structural inspection report with the following sections:
+
+1. Introduction
+2. Defect Identification and Classification
+   - Identify all visible defects (cracks, spalling, corrosion, honeycombing, exposed reinforcement, etc.)
+3. Defect Description and Structural Impact
+4. Severity Assessment (Low / Medium / High)
+   - Mention whether each defect is avoidable or inevitable
+5. Estimated Time Before Permanent Structural Damage
+6. Remediation Plan
+   - Short-term solution (cost in INR + time)
+   - Long-term solution (cost in INR + time)
+7. Preventive Measures for Future Construction
+8. Conclusion
+
+Use bullet points and tables wherever suitable.
+Keep the report concise and within 3 pages.
+Make it readable and suitable for civil engineers, site supervisors, and construction teams.
+"""
+
+if st.button("Generate Report"):
     if uploaded_image is None:
-        st.error('Please upload an image first.')
+        st.error("Please upload an image first.")
     else:
-        with st.spinner('Generating Report...'):
-            response = model.generate_content([prompt,image],generation_config={"temperature":0.2})
-            st.write(response.text)
+        with st.spinner("Generating Report..."):
+            response = model.generate_content(
+                [prompt, image],
+                generation_config={"temperature": 0.2}
+            )
+
+        st.success("Report Generated Successfully")
+        st.write(response.text)
 
         st.download_button(
-            label='Download Report',
+            label="Download Report",
             data=response.text,
-            file_name='structural_defect_report.txt',
-            mime="text/plain")
+            file_name="structural_defect_report.txt",
+            mime="text/plain"
+        )
